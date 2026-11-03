@@ -8,10 +8,12 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from atf.benchmarks import collect_benchmarks
+from atf.comparison import compare_themes
 from atf.demo import demo_panel
 from atf.pipeline import Pipeline
 from atf.presentation import cumulative_flow, price_series, stock_summary
-from atf.universe import load_universe, select
+from atf.universe import Instrument, load_universe, select
 
 ROOT = Path(__file__).resolve().parent
 COLORS = ['#1264C4', '#17A398', '#D48A17', '#7D62BC', '#D55D73']
@@ -51,12 +53,17 @@ yesterday = datetime.now(ZoneInfo('Asia/Seoul')).date() - timedelta(days=1)
 
 with st.sidebar:
     st.markdown('<div class="atf-brand">ATF</div><div class="atf-subtitle">테마 자금 흐름 모니터</div>', unsafe_allow_html=True)
-    st.caption('분석할 테마')
-    mega = st.selectbox('대분류', list(config['themes']),
-        format_func=lambda key: config['themes'][key]['label'])
-    subs = config['themes'][mega]['subthemes']
-    sub = st.selectbox('세부 테마', list(subs), format_func=lambda key: subs[key]['label'])
-    market = st.radio('시장 범위', ['전체', '국내', '미국'], horizontal=True)
+    page = st.radio('보기', ['전체 테마 비교', '세부 테마 분석'])
+    is_overview = page == '전체 테마 비교'
+    if is_overview:
+        mega, sub = None, None
+        market = st.radio('비교 시장', ['국내', '미국'], horizontal=True)
+    else:
+        mega = st.selectbox('대분류', list(config['themes']),
+            format_func=lambda key: config['themes'][key]['label'])
+        subs = config['themes'][mega]['subthemes']
+        sub = st.selectbox('세부 테마', list(subs), format_func=lambda key: subs[key]['label'])
+        market = st.radio('시장 범위', ['전체', '국내', '미국'], horizontal=True)
     st.divider()
     mode = st.radio('데이터 모드', ['데모', '실제 데이터'], horizontal=True,
         help='데모는 합성 데이터이며 외부 데이터를 수집하지 않습니다.')
@@ -73,13 +80,17 @@ if market != '전체':
     market_code = 'KR' if market == '국내' else 'US'
     universe = [item for item in universe if item.market == market_code]
 key = (mode, mega, sub, market, str(start), str(end))
+title = page if is_overview else subs[sub]['label']
+description = ('같은 시장과 기간에서 어느 테마가 강한지 비교합니다.' if is_overview else
+    f"{config['themes'][mega]['label']} · 종목별 가격과 기관·외국인 수급을 확인합니다.")
+benchmark = pd.DataFrame()
+benchmark_status = pd.DataFrame()
 
 left, right = st.columns([4, 1])
 with left:
     st.markdown(f'<div class="atf-eyebrow">ATF / THEME MONITOR</div>'
-        f'<div class="atf-title">{escape(subs[sub]["label"])}</div>'
-        f'<div class="atf-description">{escape(config["themes"][mega]["label"])} · '
-        '종목별 가격과 기관·외국인 수급을 한 화면에서 확인합니다.</div>', unsafe_allow_html=True)
+        f'<div class="atf-title">{escape(title)}</div>'
+        f'<div class="atf-description">{escape(description)}</div>', unsafe_allow_html=True)
 with right:
     badge = 'DEMO · 합성 데이터' if mode == '데모' else 'LIVE · 실제 수집 모드'
     extra = '' if mode == '데모' else ' atf-badge-live'
@@ -100,25 +111,86 @@ if not universe:
 if mode == '데모':
     panel = demo_panel(universe, start, end)
     status = None
+    if is_overview:
+        reference = universe[0]
+        index = Instrument('DEMO:' + reference.market + ':INDEX', reference.benchmark, '합성 시장 지수',
+                           reference.market, reference.currency, reference.benchmark)
+        benchmark = demo_panel([index], start, end)
 else:
     if run:
         with st.spinner('선택한 종목의 데이터를 수집하고 있습니다…'):
             panel, status = Pipeline(ROOT / 'data/cache').collect(universe, start, end, refresh)
-            st.session_state['live_result'] = (key, panel, status)
-    stored = st.session_state.get('live_result')
+            if is_overview and not panel.empty:
+                benchmark, benchmark_status = collect_benchmarks(universe, start, end)
+            st.session_state['comparison_live_result'] = (key, panel, status, benchmark, benchmark_status)
+    stored = st.session_state.get('comparison_live_result')
     if not stored or stored[0] != key:
         st.info('왼쪽에서 테마와 기간을 선택한 뒤 「실제 데이터 수집」을 누르세요.')
-        with st.expander('선택한 테마의 구성 종목'):
+        with st.expander('수집 대상 종목'):
             st.dataframe([{'종목명': item.name, '종목코드': item.ticker,
                 '시장': '국내' if item.market == 'KR' else '미국'} for item in universe],
                 hide_index=True, width='stretch')
         st.stop()
-    _, panel, status = stored
+    _, panel, status, benchmark, benchmark_status = stored
 
 if panel.empty:
     st.error('조회된 데이터가 없습니다. 기간 또는 수집 상태를 확인하세요.')
     if status is not None:
         st.dataframe(status, hide_index=True, width='stretch')
+    st.stop()
+
+if is_overview:
+    board, period = compare_themes(config, master, panel, benchmark, market_code)
+    if period is None:
+        st.warning('시장 기준지수의 유효한 가격이 부족해 공통 비교 기간을 확정할 수 없습니다.')
+        if not benchmark_status.empty:
+            st.dataframe(benchmark_status, hide_index=True)
+        st.stop()
+
+    first, last, market_return = period
+    index_name = 'KOSPI' if market_code == 'KR' else 'S&P 500'
+    index_label = f'{index_name} 합성 예시' if mode == '데모' else index_name
+    st.caption(f'{first:%Y.%m.%d} ~ {last:%Y.%m.%d} · {index_label} {market_return:+.2f}% · 현지 통화 기준')
+    ranked = board.dropna(subset=['시장 대비 (%p)'])
+    if not ranked.empty:
+        leader = ranked.iloc[0]
+        st.metric('시장 대비 성과 1위', leader['테마'], f"{leader['시장 대비 (%p)']:+.2f}%p")
+    else:
+        st.info('공통 기간 전체의 수정종가가 확인된 테마가 없습니다.')
+
+    st.subheader('테마별 성과와 수급')
+    st.dataframe(board, hide_index=True, width='stretch', row_height=42,
+        column_config={
+            '테마 수익률 (%)': st.column_config.NumberColumn(format='%+.2f'),
+            '시장 대비 (%p)': st.column_config.NumberColumn(format='%+.2f'),
+            '상승 종목 비율 (%)': st.column_config.NumberColumn(format='%.0f'),
+            '순매수 강도 (%)': st.column_config.NumberColumn(format='%+.3f'),
+        })
+    st.caption('기본 정렬은 시장 대비 성과순입니다. 가격·수급 관측은 기준을 충족한 종목 수 / 전체 구성 종목 수입니다.')
+    if not ranked.empty:
+        fig = go.Figure(go.Bar(x=ranked['시장 대비 (%p)'], y=ranked['테마'],
+            orientation='h', marker_color=['#1264C4' if x >= 0 else '#D55D73'
+                                           for x in ranked['시장 대비 (%p)']]))
+        fig.update_layout(title='테마별 시장 대비 성과', xaxis_title='초과성과 (%p)',
+            yaxis=dict(autorange='reversed'), height=max(300, 45 * len(ranked) + 100),
+            margin=dict(l=16, r=24, t=52, b=36))
+        st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
+    with st.expander('비교 기준과 데이터 상태'):
+        st.write(
+            '테마 수익률은 구성 종목의 공통 기간 수정종가 수익률을 동일 비중으로 평균합니다. '
+            '시장 대비 성과는 테마 수익률에서 같은 기간 기준지수 수익률을 뺀 값입니다. '
+            '한 종목이라도 기준지수 관측일의 수정종가가 빠지면 해당 테마의 가격 지표를 비워둡니다.'
+        )
+        st.write(
+            '순매수 강도는 시작일 다음 거래일부터 기관·외국인 순매수 합계를 시작일 시가총액 합계로 나눈 값입니다. '
+            '구성 종목 전체에서 수급과 시가총액이 확인된 경우에만 계산합니다. '
+            '구성 종목이 하나인 테마는 해당 종목의 성과를 표시합니다.'
+        )
+        if status is not None:
+            st.dataframe(status, hide_index=True)
+        if not benchmark_status.empty:
+            st.dataframe(benchmark_status, hide_index=True)
+    st.caption('개별 종목의 가격과 수급은 왼쪽 메뉴에서 「세부 테마 분석」을 선택해 확인할 수 있습니다.')
     st.stop()
 
 panel = panel.sort_values(['date', 'instrument_id'])
