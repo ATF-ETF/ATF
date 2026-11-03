@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from atf.benchmarks import collect_benchmarks
-from atf.comparison import compare_themes
+from atf.comparison import monitor_themes
 from atf.demo import demo_panel
 from atf.pipeline import Pipeline
 from atf.presentation import cumulative_flow, price_series, stock_summary
@@ -68,7 +68,7 @@ with st.sidebar:
     mode = st.radio('데이터 모드', ['데모', '실제 데이터'], horizontal=True,
         help='데모는 합성 데이터이며 외부 데이터를 수집하지 않습니다.')
     with st.expander('조회 기간 · 수집 옵션', expanded=False):
-        start = st.date_input('시작일', yesterday - timedelta(days=90))
+        start = st.date_input('시작일', yesterday - timedelta(days=365 if is_overview else 90), key='overview_start' if is_overview else 'detail_start')
         end = st.date_input('종료일', yesterday)
         refresh = st.checkbox('저장된 캐시 무시', value=False)
     run = st.button('실제 데이터 수집' if mode == '실제 데이터' else '데모 다시 보기',
@@ -81,7 +81,7 @@ if market != '전체':
     universe = [item for item in universe if item.market == market_code]
 key = (mode, mega, sub, market, str(start), str(end))
 title = page if is_overview else subs[sub]['label']
-description = ('같은 시장과 기간에서 어느 테마가 강한지 비교합니다.' if is_overview else
+description = ('장기 추세와 최근 강도 변화를 같은 시장 안에서 비교합니다.' if is_overview else
     f"{config['themes'][mega]['label']} · 종목별 가격과 기관·외국인 수급을 확인합니다.")
 benchmark = pd.DataFrame()
 benchmark_status = pd.DataFrame()
@@ -140,52 +140,60 @@ if panel.empty:
     st.stop()
 
 if is_overview:
-    board, period = compare_themes(config, master, panel, benchmark, market_code)
+    board, period = monitor_themes(config, master, panel, benchmark, market_code)
     if period is None:
         st.warning('시장 기준지수의 유효한 가격이 부족해 공통 비교 기간을 확정할 수 없습니다.')
         if not benchmark_status.empty:
             st.dataframe(benchmark_status, hide_index=True)
         st.stop()
 
-    first, last, market_return = period
+    first, last, _ = period
     index_name = 'KOSPI' if market_code == 'KR' else 'S&P 500'
     index_label = f'{index_name} 합성 예시' if mode == '데모' else index_name
-    st.caption(f'{first:%Y.%m.%d} ~ {last:%Y.%m.%d} · {index_label} {market_return:+.2f}% · 현지 통화 기준')
-    ranked = board.dropna(subset=['시장 대비 (%p)'])
-    if not ranked.empty:
-        leader = ranked.iloc[0]
-        st.metric('시장 대비 성과 1위', leader['테마'], f"{leader['시장 대비 (%p)']:+.2f}%p")
-    else:
-        st.info('공통 기간 전체의 수정종가가 확인된 테마가 없습니다.')
+    st.caption(f'데이터 범위 {first:%Y.%m.%d} ~ {last:%Y.%m.%d} · 기준 {index_label} · 현지 통화')
+    st.subheader('장기 추세와 최근 변화')
+    st.caption('20·60·120 거래일의 시장 대비 성과와 최근 20거래일의 개선 폭을 함께 확인합니다.')
+    change = '초과성과 변화 (%p)'
+    long = '120일 초과성과 (%p)'
+    order = st.selectbox('정렬 기준', [change, long, '20일 초과성과 (%p)', '순매수 강도 변화 (%p)'])
+    board = board.sort_values(order, ascending=False, na_position='last')
+    turns = board.loc[board['관찰 상태'].eq('반전 관찰'), '테마'].tolist()
+    if turns:
+        st.info('반전 관찰 · ' + ', '.join(turns))
+    columns = ['테마', '관찰 상태', long, '60일 초과성과 (%p)', '20일 초과성과 (%p)',
+               change, '상승 종목 비율 변화 (%p)', '5일 순매수 강도 (%)', '순매수 강도 변화 (%p)',
+               '20일 가격 관측', '5일 수급 관측', '대분류']
+    st.dataframe(board[columns], hide_index=True, width='stretch', row_height=42,
+        column_config={name: st.column_config.NumberColumn(format='%+.2f')
+                       for name in columns if name.endswith(('(%)', '(%p)'))})
+    st.caption('비교 기간 전체의 구성 종목 가격이 확인된 경우에만 계산합니다. 미국 실제 수급은 현재 경로에서 지원하지 않습니다.')
 
-    st.subheader('테마별 성과와 수급')
-    st.dataframe(board, hide_index=True, width='stretch', row_height=42,
-        column_config={
-            '테마 수익률 (%)': st.column_config.NumberColumn(format='%+.2f'),
-            '시장 대비 (%p)': st.column_config.NumberColumn(format='%+.2f'),
-            '상승 종목 비율 (%)': st.column_config.NumberColumn(format='%.0f'),
-            '순매수 강도 (%)': st.column_config.NumberColumn(format='%+.3f'),
-        })
-    st.caption('기본 정렬은 시장 대비 성과순입니다. 가격·수급 관측은 기준을 충족한 종목 수 / 전체 구성 종목 수입니다.')
-    if not ranked.empty:
-        fig = go.Figure(go.Bar(x=ranked['시장 대비 (%p)'], y=ranked['테마'],
-            orientation='h', marker_color=['#1264C4' if x >= 0 else '#D55D73'
-                                           for x in ranked['시장 대비 (%p)']]))
-        fig.update_layout(title='테마별 시장 대비 성과', xaxis_title='초과성과 (%p)',
-            yaxis=dict(autorange='reversed'), height=max(300, 45 * len(ranked) + 100),
-            margin=dict(l=16, r=24, t=52, b=36))
+    plotted = board.dropna(subset=[long, change])
+    if not plotted.empty:
+        fig = go.Figure(go.Scatter(x=plotted[long], y=plotted[change], text=plotted['테마'],
+            customdata=plotted['관찰 상태'], mode='markers+text', textposition='top center',
+            marker=dict(size=12, color=plotted['관찰 상태'].map({
+                '반전 관찰': '#1B8D75', '둔화 관찰': '#D55D73', '추세 확인': '#1264C4'}).fillna('#8295AA')),
+            hovertemplate='%{text}<br>120일 %{x:+.2f}%p<br>최근 변화 %{y:+.2f}%p<br>%{customdata}<extra></extra>'))
+        fig.add_hline(y=0, line_dash='dot', line_color='#A2AEC0')
+        fig.add_vline(x=0, line_dash='dot', line_color='#A2AEC0')
+        fig.update_layout(title='장기 상대성과와 최근 강도 변화',
+            xaxis_title=long, yaxis_title='최근 20일 − 직전 20일 초과성과 (%p)', height=390,
+            margin=dict(l=16, r=24, t=58, b=48))
         st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
     with st.expander('비교 기준과 데이터 상태'):
         st.write(
-            '테마 수익률은 구성 종목의 공통 기간 수정종가 수익률을 동일 비중으로 평균합니다. '
-            '시장 대비 성과는 테마 수익률에서 같은 기간 기준지수 수익률을 뺀 값입니다. '
-            '한 종목이라도 기준지수 관측일의 수정종가가 빠지면 해당 테마의 가격 지표를 비워둡니다.'
+            '초과성과는 구성 종목의 동일 비중 수정종가 수익률에서 같은 기간 시장 수익률을 뺀 값입니다. '
+            '초과성과와 상승 종목 비율 변화는 최근 20거래일과 그 직전 20거래일을 비교합니다. '
+            '수급은 최근 5거래일과 직전 5거래일의 기관·외국인 순매수 합계를 각각 기초 시가총액으로 나눠 비교합니다.'
         )
         st.write(
-            '순매수 강도는 시작일 다음 거래일부터 기관·외국인 순매수 합계를 시작일 시가총액 합계로 나눈 값입니다. '
-            '구성 종목 전체에서 수급과 시가총액이 확인된 경우에만 계산합니다. '
-            '구성 종목이 하나인 테마는 해당 종목의 성과를 표시합니다.'
+            '반전 관찰은 120일 초과성과가 0 이하이고 최근 20일 초과성과가 양수로 개선된 상태에서, '
+            '상승 종목 비율이 확대됐거나 순매수 강도가 양수로 개선된 경우입니다. '
+            '둔화 관찰은 120일 초과성과가 양수이고 최근 20일 초과성과가 음수로 약해진 경우입니다. '
+            '관찰 상태는 가격·수급 변화에 따른 분류입니다. 예측력은 검증 전입니다.'
         )
+        st.caption('거래일 수나 데이터가 부족한 지표는 공란으로 표시합니다. 단일 종목 테마의 상승 종목 비율은 0% 또는 100%입니다.')
         if status is not None:
             st.dataframe(status, hide_index=True)
         if not benchmark_status.empty:
