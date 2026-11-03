@@ -1,0 +1,7 @@
+# Tested top-level versions; not a full dependency lockfile.
+pandas==2.3.3
+numpy==2.5.4
+yfinance==0.2.66
+finance-datareader==0.9.202
+pykrx==1.2.9
+streamlit==1.66.1

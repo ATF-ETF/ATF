@@ -1,0 +1,236 @@
+{
+  "schema_version": 1,
+  "universe_version": "2026-11-02-draft",
+  "notice": "구조 검증용 예시 유니버스. 추천·확정 ETF 바스켓·과거 시점 유니버스가 아님.",
+  "instruments": {
+    "KR:000660": {
+      "ticker": "000660",
+      "name": "SK하이닉스",
+      "market": "KR",
+      "currency": "KRW",
+      "benchmark": "^KS11"
+    },
+    "KR:042700": {
+      "ticker": "042700",
+      "name": "한미반도체",
+      "market": "KR",
+      "currency": "KRW",
+      "benchmark": "^KS11"
+    },
+    "US:MU": {
+      "ticker": "MU",
+      "name": "Micron",
+      "market": "US",
+      "currency": "USD",
+      "benchmark": "^GSPC"
+    },
+    "KR:267260": {
+      "ticker": "267260",
+      "name": "HD현대일렉트릭",
+      "market": "KR",
+      "currency": "KRW",
+      "benchmark": "^KS11"
+    },
+    "KR:010120": {
+      "ticker": "010120",
+      "name": "LS ELECTRIC",
+      "market": "KR",
+      "currency": "KRW",
+      "benchmark": "^KS11"
+    },
+    "US:ETN": {
+      "ticker": "ETN",
+      "name": "Eaton",
+      "market": "US",
+      "currency": "USD",
+      "benchmark": "^GSPC"
+    },
+    "KR:012450": {
+      "ticker": "012450",
+      "name": "한화에어로스페이스",
+      "market": "KR",
+      "currency": "KRW",
+      "benchmark": "^KS11"
+    },
+    "KR:079550": {
+      "ticker": "079550",
+      "name": "LIG넥스원",
+      "market": "KR",
+      "currency": "KRW",
+      "benchmark": "^KS11"
+    },
+    "US:LMT": {
+      "ticker": "LMT",
+      "name": "Lockheed Martin",
+      "market": "US",
+      "currency": "USD",
+      "benchmark": "^GSPC"
+    },
+    "KR:047810": {
+      "ticker": "047810",
+      "name": "한국항공우주",
+      "market": "KR",
+      "currency": "KRW",
+      "benchmark": "^KS11"
+    },
+    "US:RKLB": {
+      "ticker": "RKLB",
+      "name": "Rocket Lab",
+      "market": "US",
+      "currency": "USD",
+      "benchmark": "^GSPC"
+    },
+    "KR:207940": {
+      "ticker": "207940",
+      "name": "삼성바이오로직스",
+      "market": "KR",
+      "currency": "KRW",
+      "benchmark": "^KS11"
+    },
+    "KR:068270": {
+      "ticker": "068270",
+      "name": "셀트리온",
+      "market": "KR",
+      "currency": "KRW",
+      "benchmark": "^KS11"
+    },
+    "US:AMGN": {
+      "ticker": "AMGN",
+      "name": "Amgen",
+      "market": "US",
+      "currency": "USD",
+      "benchmark": "^GSPC"
+    },
+    "KR:373220": {
+      "ticker": "373220",
+      "name": "LG에너지솔루션",
+      "market": "KR",
+      "currency": "KRW",
+      "benchmark": "^KS11"
+    },
+    "KR:006400": {
+      "ticker": "006400",
+      "name": "삼성SDI",
+      "market": "KR",
+      "currency": "KRW",
+      "benchmark": "^KS11"
+    },
+    "US:ALB": {
+      "ticker": "ALB",
+      "name": "Albemarle",
+      "market": "US",
+      "currency": "USD",
+      "benchmark": "^GSPC"
+    },
+    "US:PANW": {
+      "ticker": "PANW",
+      "name": "Palo Alto Networks",
+      "market": "US",
+      "currency": "USD",
+      "benchmark": "^GSPC"
+    },
+    "US:FTNT": {
+      "ticker": "FTNT",
+      "name": "Fortinet",
+      "market": "US",
+      "currency": "USD",
+      "benchmark": "^GSPC"
+    },
+    "US:CRWD": {
+      "ticker": "CRWD",
+      "name": "CrowdStrike",
+      "market": "US",
+      "currency": "USD",
+      "benchmark": "^GSPC"
+    }
+  },
+  "themes": {
+    "ai_infrastructure": {
+      "label": "AI 인프라",
+      "subthemes": {
+        "hbm": {
+          "label": "HBM / 패키징",
+          "instruments": [
+            "KR:000660",
+            "KR:042700",
+            "US:MU"
+          ],
+          "mapping_basis": "수동 예시 후보군; 테마 매출 노출도와 투자 적격성은 미검증"
+        },
+        "power": {
+          "label": "전력 / 전력망",
+          "instruments": [
+            "KR:267260",
+            "KR:010120",
+            "US:ETN"
+          ],
+          "mapping_basis": "수동 예시 후보군; 테마 매출 노출도와 투자 적격성은 미검증"
+        }
+      }
+    },
+    "defense_space": {
+      "label": "방산 / 우주",
+      "subthemes": {
+        "defense": {
+          "label": "방산",
+          "instruments": [
+            "KR:012450",
+            "KR:079550",
+            "US:LMT"
+          ],
+          "mapping_basis": "수동 예시 후보군; 테마 매출 노출도와 투자 적격성은 미검증"
+        },
+        "space": {
+          "label": "우주",
+          "instruments": [
+            "KR:047810",
+            "US:RKLB"
+          ],
+          "mapping_basis": "수동 예시 후보군; 테마 매출 노출도와 투자 적격성은 미검증"
+        }
+      }
+    },
+    "healthcare": {
+      "label": "헬스케어",
+      "subthemes": {
+        "biotech": {
+          "label": "바이오 / 바이오의약품",
+          "instruments": [
+            "KR:207940",
+            "KR:068270",
+            "US:AMGN"
+          ],
+          "mapping_basis": "수동 예시 후보군; 테마 매출 노출도와 투자 적격성은 미검증"
+        }
+      }
+    },
+    "electrification": {
+      "label": "전동화",
+      "subthemes": {
+        "battery": {
+          "label": "이차전지 / 소재",
+          "instruments": [
+            "KR:373220",
+            "KR:006400",
+            "US:ALB"
+          ],
+          "mapping_basis": "수동 예시 후보군; 테마 매출 노출도와 투자 적격성은 미검증"
+        }
+      }
+    },
+    "security": {
+      "label": "보안",
+      "subthemes": {
+        "cyber": {
+          "label": "사이버보안",
+          "instruments": [
+            "US:PANW",
+            "US:FTNT",
+            "US:CRWD"
+          ],
+          "mapping_basis": "수동 예시 후보군; 테마 매출 노출도와 투자 적격성은 미검증"
+        }
+      }
+    }
+  }
+}
