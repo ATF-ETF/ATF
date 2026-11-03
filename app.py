@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from atf.benchmarks import collect_benchmarks
-from atf.comparison import monitor_themes
+from atf.trend_monitor import monitor_themes
 from atf.demo import demo_panel
 from atf.pipeline import Pipeline
 from atf.presentation import cumulative_flow, price_series, stock_summary
