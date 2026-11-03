@@ -18,10 +18,10 @@ COLORS = ['#1264C4', '#17A398', '#D48A17', '#7D62BC', '#D55D73']
 st.set_page_config(page_title='ATF | 테마 흐름', layout='wide', initial_sidebar_state='expanded')
 st.markdown('''<style>
 .stApp { background: #F5F7FB; }
-[data-testid="stMainBlockContainer"] { max-width: 1440px; padding: 2rem 2.5rem 3rem; }
+[data-testid="stMainBlockContainer"] { max-width: 1440px; padding: 4rem 2.5rem 3rem; }
 [data-testid="stSidebar"] { background: #FFFFFF; border-right: 1px solid #E1E7F0; }
 [data-testid="stSidebar"] [data-testid="stSidebarUserContent"] { padding-top: 1.7rem; }
-html, body, [class*="st-"] { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif; }
+html, body, [data-testid="stMarkdownContainer"] p, label, input, button { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif; }
 [data-testid="stMetric"] { background: white; border: 1px solid #E0E7F0; border-radius: 12px; padding: 18px 20px; }
 [data-testid="stMetricLabel"] p { color: #52657B; font-size: 15px; }
 [data-testid="stMetricValue"] { color: #162D48; font-size: 30px; font-weight: 700; }
@@ -40,7 +40,7 @@ h3 { font-size: 20px !important; }
 background: #FFF2D5; border: 1px solid #F1D99D; padding: 7px 12px; border-radius: 7px; }
 .atf-badge-live { color: #14664E; background: #E6F5ED; border-color: #BEE1CE; }
 @media (max-width: 768px) {
- [data-testid="stMainBlockContainer"] { padding: 1.3rem 1rem; }
+ [data-testid="stMainBlockContainer"] { padding: 4rem 1rem 1.5rem; }
  .atf-title { font-size: 25px; }
  [data-testid="stMetric"] { padding: 13px 15px; }
 }
